@@ -4,104 +4,144 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import { z } from "zod";
 
 const server = new McpServer({
-  name: "mcp-streamable-http",
+  name: "mcp-calculator-server",
   version: "1.0.0",
 });
 
-// Get Chuck Norris joke tool
-const getChuckJoke = server.tool(
-  "get-chuck-joke",
-  "Get a random Chuck Norris joke",
-  async () => {
-    const response = await fetch("https://api.chucknorris.io/jokes/random");
-    const data = await response.json();
-    return {
-      content: [
-        {
-          type: "text",
-          text: data.value,
-        },
-      ],
-    };
-  }
-);
-
-// Get Chuck Norris joke by category tool
-const getChuckJokeByCategory = server.tool(
-  "get-chuck-joke-by-category",
-  "Get a random Chuck Norris joke by category",
+//  Add tool
+server.tool(
+  "add",
+  "Add two numbers",
   {
-    category: z.string().describe("Category of the Chuck Norris joke"),
+    a: z.number().describe("First number"),
+    b: z.number().describe("Second number"),
   },
-  async (params: { category: string }) => {
-    const response = await fetch(
-      `https://api.chucknorris.io/jokes/random?category=${params.category}`
-    );
-    const data = await response.json();
-    return {
-      content: [
-        {
-          type: "text",
-          text: data.value,
-        },
-      ],
-    };
-  }
-);
-
-// Get Chuck Norris joke categories tool
-const getChuckCategories = server.tool(
-  "get-chuck-categories",
-  "Get all available categories for Chuck Norris jokes",
-  async () => {
-    const response = await fetch("https://api.chucknorris.io/jokes/categories");
-    const data = await response.json();
-    return {
-      content: [
-        {
-          type: "text",
-          text: data.join(", "),
-        },
-      ],
-    };
-  }
-);
-
-// Get Dad joke tool
-const getDadJoke = server.tool(
-  "get-dad-joke",
-  "Get a random dad joke",
-  async () => {
-    const response = await fetch("https://icanhazdadjoke.com/", {
-      headers: {
-        Accept: "application/json",
+  async ({ a, b }) => ({
+    content: [
+      {
+        type: "text",
+        text: `Result: ${a + b}`,
       },
-    });
-    const data = await response.json();
+    ],
+  })
+);
+
+//  Subtract tool
+server.tool(
+  "subtract",
+  "Subtract two numbers",
+  {
+    a: z.number().describe("First number"),
+    b: z.number().describe("Second number"),
+  },
+  async ({ a, b }) => ({
+    content: [
+      {
+        type: "text",
+        text: `Result: ${a - b}`,
+      },
+    ],
+  })
+);
+
+// Multiply tool
+server.tool(
+  "multiply",
+  "Multiply two numbers",
+  {
+    a: z.number().describe("First number"),
+    b: z.number().describe("Second number"),
+  },
+  async ({ a, b }) => ({
+    content: [
+      {
+        type: "text",
+        text: `Result: ${a * b}`,
+      },
+    ],
+  })
+);
+
+//  Divide tool
+server.tool(
+  "divide",
+  "Divide two numbers",
+  {
+    a: z.number().describe("Numerator"),
+    b: z.number().describe("Denominator"),
+  },
+  async ({ a, b }) => {
+    if (b === 0) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: "Error: Division by zero is undefined.",
+          },
+        ],
+      };
+    }
     return {
       content: [
         {
           type: "text",
-          text: data.joke,
+          text: `Result: ${a / b}`,
         },
       ],
     };
   }
 );
 
+// Modulo tool
+server.tool(
+  "modulo",
+  "Find remainder of two numbers",
+  {
+    a: z.number().describe("Dividend"),
+    b: z.number().describe("Divisor"),
+  },
+  async ({ a, b }) => ({
+    content: [
+      {
+        type: "text",
+        text: `Result: ${a % b}`,
+      },
+    ],
+  })
+);
+
+// Power tool
+server.tool(
+  "power",
+  "Raise a number to the power of another",
+  {
+    base: z.number().describe("Base number"),
+    exponent: z.number().describe("Exponent"),
+  },
+  async ({ base, exponent }) => ({
+    content: [
+      {
+        type: "text",
+        text: `Result: ${Math.pow(base, exponent)}`,
+      },
+    ],
+  })
+);
+
+// Setup Express server
 const app = express();
 app.use(express.json());
 
-const transport: StreamableHTTPServerTransport =
-  new StreamableHTTPServerTransport({
-    sessionIdGenerator: undefined, // set to undefined for stateless servers
-  });
+const transport = new StreamableHTTPServerTransport({
+  sessionIdGenerator: undefined, // stateless
+});
 
-// Setup routes for the server
+// Connect MCP server
 const setupServer = async () => {
   await server.connect(transport);
 };
 
+// POST endpoint for MCP requests
 app.post("/mcp", async (req: Request, res: Response) => {
   console.log("Received MCP request:", req.body);
   try {
@@ -121,8 +161,8 @@ app.post("/mcp", async (req: Request, res: Response) => {
   }
 });
 
-app.get("/mcp", async (req: Request, res: Response) => {
-  console.log("Received GET MCP request");
+// Disallow GET and DELETE for /mcp
+app.get("/mcp", (req: Request, res: Response) => {
   res.writeHead(405).end(
     JSON.stringify({
       jsonrpc: "2.0",
@@ -135,8 +175,7 @@ app.get("/mcp", async (req: Request, res: Response) => {
   );
 });
 
-app.delete("/mcp", async (req: Request, res: Response) => {
-  console.log("Received DELETE MCP request");
+app.delete("/mcp", (req: Request, res: Response) => {
   res.writeHead(405).end(
     JSON.stringify({
       jsonrpc: "2.0",
@@ -154,10 +193,10 @@ const PORT = process.env.PORT || 3000;
 setupServer()
   .then(() => {
     app.listen(PORT, () => {
-      console.log(`MCP Streamable HTTP Server listening on port ${PORT}`);
+      console.log(`MCP Calculator Server is running on port ${PORT}`);
     });
   })
   .catch((error) => {
-    console.error("Failed to set up the server:", error);
+    console.error("Server setup failed:", error);
     process.exit(1);
   });
