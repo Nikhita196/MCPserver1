@@ -14,7 +14,7 @@
   "bin": {
     "demo": "./dist/server.js"
   },
-  "keywords": [ ],
+  "keywords": [],
   "author": "",
   "license": "ISC",
   "description": "",
